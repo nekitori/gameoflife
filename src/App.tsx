@@ -1,26 +1,116 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useCallback, useRef } from "react";
+import produce from "immer";
 
-function App() {
+const numRows = 50;
+const numCol = 50;
+const operations = [
+  [0, 1],
+  [1, 0],
+  [1, 1],
+  [-1, 1],
+  [1, -1],
+  [-1, -1],
+  [0, -1],
+  [-1, 0],
+];
+
+const generateEmptyGrid = () => {
+  return Array(numRows).fill(Array(numCol).fill(0));
+};
+
+const App: React.FC = () => {
+  const [grid, setGrid] = useState(() => generateEmptyGrid());
+  const [running, setRunning] = useState(false);
+
+  const runningRef = useRef(running);
+  runningRef.current = running;
+
+  const runSimulation = useCallback(() => {
+    if (!runningRef.current) {
+      return;
+    }
+
+    setGrid((g) => {
+      return produce(g, (gridCopy) => {
+        for (let i = 0; i < numRows; i++) {
+          for (let k = 0; k < numCol; k++) {
+            let neigthbords = 0;
+            operations.forEach(([x, y]) => {
+              const newI = i + x;
+              const newK = k + y;
+              if (newI >= 0 && newI < numRows && newK >= 0 && newK < numCol) {
+                neigthbords += g[newI][newK];
+              }
+            });
+            if (neigthbords < 2 || neigthbords > 3) {
+              gridCopy[i][k] = 0;
+            } else if (g[i][k] === 0 && neigthbords === 3) {
+              gridCopy[i][k] = 1;
+            }
+          }
+        }
+      });
+    });
+    setTimeout(runSimulation, 1000);
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div>
+      <button
+        onClick={() => {
+          setRunning(!running);
+          if (!running) {
+            runningRef.current = true;
+            runSimulation();
+          }
+        }}
+      >
+        {running ? "Stop" : "Start"}
+      </button>
+      <button
+        onClick={() => {
+          const rows = [];
+          for (let i = 0; i < numRows; i++) {
+            rows.push(
+              Array.from(Array(numCol), () => (Math.random() > 0.9 ? 1 : 0))
+            );
+          }
+          setGrid(rows);
+        }}
+      >
+        random
+      </button>
+
+      <button onClick={() => setGrid(generateEmptyGrid())}>clear</button>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${numCol}, 20px)`,
+        }}
+      >
+        {grid.map((rows, i) =>
+          rows.map((col: any, k: React.Key) => (
+            <div
+              key={`${i}--${k}`}
+              onClick={() => {
+                const newGrid = produce(grid, (gridCopy) => {
+                  gridCopy[i][k] = gridCopy[i][k] ? 0 : 1;
+                });
+                setGrid(newGrid);
+              }}
+              style={{
+                background: grid[i][k] ? "pink" : "none",
+                border: "solid 1px black",
+                height: 20,
+                width: 20,
+              }}
+            ></div>
+          ))
+        )}
+      </div>
     </div>
   );
-}
+};
 
 export default App;
